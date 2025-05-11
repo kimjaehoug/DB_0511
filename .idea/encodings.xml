@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/split_files/강원_A-유통_가리비.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/강원_A-유통_간장.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/강원_A-유통_감자.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/강원_A-유통_레몬.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/강원_중앙_새송이버섯.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/강원_중앙_팽이버섯.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/부산_A-유통_무.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/부산_D-유통_감자.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/서울_A-유통_가리비.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/서울_A-유통_감자.csv" charset="EUC-KR" />
+  </component>
+</project>
