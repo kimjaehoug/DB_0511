@@ -11,5 +11,8 @@
     <file url="file://$PROJECT_DIR$/split_files/부산_D-유통_감자.csv" charset="EUC-KR" />
     <file url="file://$PROJECT_DIR$/split_files/서울_A-유통_가리비.csv" charset="EUC-KR" />
     <file url="file://$PROJECT_DIR$/split_files/서울_A-유통_감자.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/서울_A-유통_멸치액젓.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/충남_C-유통_미나리.csv" charset="EUC-KR" />
+    <file url="file://$PROJECT_DIR$/split_files/충북_B-유통_건다시마.csv" charset="EUC-KR" />
   </component>
 </project>

@@ -17,7 +17,8 @@ MYSQL_PASSWORD = '1633'
 MYSQL_HOST = 'localhost'
 MYSQL_PORT = 3306
 MYSQL_DB = 'famers'
-TABLE_NAME = 'prediction_result'
+PREDICT_TABLE = 'prediction_result'
+EDA_TABLE = 'eda_result'  # New table for EDA results
 
 # ===== CNN-BiLSTM 모델 정의 =====
 class CNNBiLSTM(nn.Module):
@@ -48,8 +49,26 @@ def create_sequences(data, input_window=30, output_window=14):
         y.append(data[i+input_window:i+input_window+output_window])
     return np.array(X), np.array(y)
 
+# ===== EDA 수행 함수 =====
+def run_eda(df, region, crop, distribution_method):
+    eda_df = df.copy()
+    eda_df["MA_7"] = eda_df["PDLT_PRCE"].rolling(window=7).mean()  # 7-day moving average
+    eda_df["MA_14"] = eda_df["PDLT_PRCE"].rolling(window=14).mean()  # 14-day moving average
+    eda_df["price_pct_change"] = eda_df["PDLT_PRCE"].pct_change() * 100  # Price percentage change
+    eda_df["weekday"] = eda_df["PRCE_REG_YMD"].dt.day_name()  # Day of the week
+    weekday_avg = eda_df.groupby("weekday")["PDLT_PRCE"].mean().to_dict()
+    eda_df["weekday_avg_price"] = eda_df["weekday"].map(weekday_avg)  # Weekday average price
+    eda_df["region"] = region
+    eda_df["crop"] = crop
+    eda_df["distribution_method"] = distribution_method
+
+    return eda_df[[
+        "PRCE_REG_YMD", "PDLT_PRCE", "MA_7", "MA_14", "price_pct_change",
+        "weekday", "weekday_avg_price", "region", "crop", "distribution_method"
+    ]]
+
 # ===== 예측 수행 함수 =====
-def run_prediction(filepath, predict_days):
+def run_prediction(filepath, predict_days, region, crop, distribution_method):
     df = pd.read_csv(filepath, encoding='euc-kr')
     df = df[["PRCE_REG_YMD", "PDLT_PRCE"]].dropna()
     df["PRCE_REG_YMD"] = pd.to_datetime(df["PRCE_REG_YMD"], format="%Y%m%d", errors="coerce")
@@ -61,9 +80,16 @@ def run_prediction(filepath, predict_days):
     df_merged = pd.merge(df_full, df, on="PRCE_REG_YMD", how="left")
     df_merged["PDLT_PRCE"] = df_merged["PDLT_PRCE"].ffill()
 
+    # Perform EDA and save to MySQL
+    eda_df = run_eda(df_merged, region, crop, distribution_method)
+    engine = create_engine(
+        f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}?charset=utf8mb4"
+    )
+    eda_df.to_sql(EDA_TABLE, con=engine, if_exists="append", index=False)
+
+    # Prediction process
     scaler = MinMaxScaler()
     price_scaled = scaler.fit_transform(df_merged[["PDLT_PRCE"]])
-
     X, y = create_sequences(price_scaled, input_window=30, output_window=predict_days)
     dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
     loader = DataLoader(dataset, batch_size=16, shuffle=True)
@@ -103,37 +129,34 @@ def predict_crop_price():
     try:
         data = request.get_json()
         region = data.get("region")
-        subregion = data.get("subregion")
         crop = data.get("crop")
+        distribution_method = data.get("distribution_method")
         predict_days = int(data.get("predict_days", 14))
 
-        filename = f"{region}_{subregion}_{crop}.csv".replace(" ", "_")
+        filename = f"{region}_{distribution_method}_{crop}.csv".replace(" ", "_")
         filepath = os.path.join("split_files", filename)
 
         if not os.path.exists(filepath):
             return jsonify({"error": f"❌ 파일 '{filename}'을 찾을 수 없습니다."}), 404
 
-        pred_df = run_prediction(filepath, predict_days)
+        pred_df = run_prediction(filepath, predict_days, region, crop, distribution_method)
 
-        # ===== MySQL 저장 =====
-        from sqlalchemy import create_engine
+        # Save predictions to MySQL
         engine = create_engine(
             f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}?charset=utf8mb4"
         )
-
         pred_df["region"] = region
-        pred_df["subregion"] = subregion
         pred_df["crop"] = crop
-
-        pred_df.to_sql(TABLE_NAME, con=engine, if_exists="append", index=False)
+        pred_df["distribution_method"] = distribution_method
+        pred_df.to_sql(PREDICT_TABLE, con=engine, if_exists="append", index=False)
 
         return jsonify({
-            "message": "✅ 예측 성공",
+            "message": "✅ 예측 및 EDA 저장 성공",
             "predictions": pred_df.to_dict(orient="records")
         })
 
     except Exception as e:
-        return jsonify({"error": f"❌ 예측 중 오류 발생: {str(e)}"}), 500
+        return jsonify({"error": f"❌ 처리 중 오류 발생: {str(e)}"}), 500
 
 # ===== 서버 실행 =====
 if __name__ == "__main__":
